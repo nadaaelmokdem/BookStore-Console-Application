@@ -4,7 +4,7 @@ using System.Text;
 
 namespace BookStore_Console_Application.Domain
 {
-    public  class Customer
+    public class Customer
     {
         public Guid Id { get; set; }
         public string Name { get; set; }
@@ -15,7 +15,7 @@ namespace BookStore_Console_Application.Domain
         public string Country { get; set; }
         public string Phone { get; set; }
 
-        protected Customer(string name, string address, string city, string region, string postalCode, string country, string phone)
+        public Customer(string name, string address, string city, string region, string postalCode, string country, string phone)
         {
             if (string.IsNullOrWhiteSpace(name))
                 throw new ArgumentException("Name cannot be empty.");
