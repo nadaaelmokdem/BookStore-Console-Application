@@ -6,17 +6,17 @@ namespace BookStore_Console_Application.Domain
 {
     public abstract class Book
     {
-        Guid Id { get; set; }
-        string Name { get; set; }
-        string Description { get; set; }
-        string Title { get; set; }
-        string Category { get; set; }
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+        public  string Description { get; set; }
+        public string Title { get; set; }
+        public string Category { get; set; }
 
-        string Author { get; set; }
+        public string Author { get; set; }
 
-        decimal Price { get; set; }
+        public decimal Price { get; set; }
 
-        int Stock { get; set; }
+        public int Stock { get; set; }
 
         public EventHandler<string>? Outofstock;
 
