@@ -11,81 +11,58 @@ namespace BookStore_Console_Application.Logic
         private readonly IRepository<Customer> _customerRepository;
         private readonly IRepository<Purchase> _purchaseRepository;
 
-        public StoreManager(IRepository<Book> bookRepository, IRepository<Customer> customerRepository, IRepository<Purchase> purchaseRepository)
+        public StoreManager(IRepository<Book> bookRepo, IRepository<Customer> custRepo, IRepository<Purchase> purcRepo)
         {
-            _bookRepository = bookRepository;
-            _customerRepository = customerRepository;
-            _purchaseRepository = purchaseRepository;
+            _bookRepository = bookRepo;
+            _customerRepository = custRepo;
+            _purchaseRepository = purcRepo;
         }
 
+        // --- Core Operations ---
+        public void AddBook(Book book) => _bookRepository.Add(book);
 
-        public void RegisterCustomer(string name, string address, string city, string region, string postalCode, string country, string phone)
-        {
-            var customer = new Customer(name, address, city, region, postalCode, country, phone);
-            _customerRepository.Add(customer);
-        }
+        public void RegisterCustomer(Customer customer) => _customerRepository.Add(customer);
 
-        public void RecordPurchase(Guid customerId, List<Book> books)
+        public void ProcessPurchase(Guid customerId, List<Book> books)
         {
-            var customer = _customerRepository.GetById(customerId);
-            if (customer == null)
+            if (_customerRepository.GetById(customerId) == null)
                 throw new InvalidOperationException("Customer not found.");
 
             if (books == null || !books.Any())
                 throw new ArgumentException("A purchase must contain at least one book.");
 
+            // Stock Validation
             foreach (var book in books)
             {
                 if (book.Stock <= 0)
-                    throw new InvalidOperationException($"Cannot sell '{book.Title}' because it is out of stock.");
-            }
+                    throw new InvalidOperationException($"'{book.Title}' is out of stock.");
 
-            foreach (var book in books)
-            {
+                // This calls the logic in Book.cs, which triggers the Outofstock event if necessary
                 book.ReduceStock(1);
             }
 
-            // Create and store purchase
             var purchase = new Purchase(customerId, books);
             _purchaseRepository.Add(purchase);
         }
 
-
-        public void AddBook(Book book) => _bookRepository.Add(book);
-
-        public void RemoveBook(Book book) => _bookRepository.Remove(book);
-
-        public IEnumerable<Book> GetAllBooks() => _bookRepository.GetAll();
-
+        // --- Filtering (Task 6) ---
         public IEnumerable<Book> FilterBooksByCategory(string category)
             => _bookRepository.GetAll().Where(b => b.Category.Equals(category, StringComparison.OrdinalIgnoreCase));
 
         public IEnumerable<Book> FilterBooksByAuthor(string author)
             => _bookRepository.GetAll().Where(b => b.Author.Equals(author, StringComparison.OrdinalIgnoreCase));
 
-        public IEnumerable<Book> FilterBooksByPriceRange(decimal minPrice, decimal maxPrice)
-            => _bookRepository.GetAll().Where(b => b.Price >= minPrice && b.Price <= maxPrice);
+        public IEnumerable<Book> FilterBooksByPriceRange(decimal min, decimal max)
+            => _bookRepository.GetAll().Where(b => b.Price >= min && b.Price <= max);
 
-        public void ApplyDeveloperRuleToBooks(Action<Book> rule)
-        {
-            foreach (var book in _bookRepository.GetAll())
-            {
-                rule(book);
-            }
-        }
-
-
+        // --- Metrics (Task 5) ---
         public decimal CalculateTotalRevenue()
-        {
-            return _purchaseRepository.GetAll().Sum(p => p.TotalAmount);
-        }
+            => _purchaseRepository.GetAll().Sum(p => p.TotalAmount);
 
         public Book GetBestSellingBook()
         {
-            var allSoldBooks = _purchaseRepository.GetAll().SelectMany(p => p.Items);
-            if (!allSoldBooks.Any()) return null;
-
-            return allSoldBooks
+            return _purchaseRepository.GetAll()
+                .SelectMany(p => p.Items)
                 .GroupBy(b => b.Id)
                 .OrderByDescending(g => g.Count())
                 .Select(g => g.First())
@@ -94,16 +71,16 @@ namespace BookStore_Console_Application.Logic
 
         public Customer GetTopCustomer()
         {
-            var allPurchases = _purchaseRepository.GetAll();
-            if (!allPurchases.Any()) return null;
-
-            var topCustomerId = allPurchases
+            var topId = _purchaseRepository.GetAll()
                 .GroupBy(p => p.CustomerId)
                 .OrderByDescending(g => g.Count())
                 .Select(g => g.Key)
                 .FirstOrDefault();
 
-            return _customerRepository.GetById(topCustomerId);
+            return _customerRepository.GetById(topId);
         }
+
+        public IEnumerable<Purchase> GetPurchasesByCustomer(Guid customerId)
+            => _purchaseRepository.GetAll().Where(p => p.CustomerId == customerId);
     }
 }
